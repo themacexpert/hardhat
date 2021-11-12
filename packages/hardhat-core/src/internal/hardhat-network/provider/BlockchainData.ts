@@ -14,17 +14,13 @@ export class BlockchainData {
   private _transactions: Map<string, TypedTransaction> = new Map();
   private _transactionReceipts: Map<string, RpcReceiptOutput> = new Map();
   private _totalDifficulty: Map<string, BN> = new Map();
-  private _emptyBlockRanges: EmptyBlockRange[] = new Array();
+  public emptyBlockRanges: EmptyBlockRange[] = new Array();
 
   public addEmptyBlockRange(r: EmptyBlockRange) {
-    this._emptyBlockRanges.push(r);
+    this.emptyBlockRanges.push(r);
   }
 
   public getBlockByNumber(blockNumber: BN) {
-    // TODO: if blockNumber lies within any of empty block ranges
-    // (this._emptyBlockRanges) then construct the requested block, pass it
-    // into this.addBlock, and split that range into two different ranges above
-    // and below the newly-constructed block.
     return this._blocksByNumber.get(blockNumber.toNumber());
   }
 

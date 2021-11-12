@@ -24,11 +24,13 @@ export class HardhatBlockchain implements HardhatBlockchainInterface {
   public async getBlock(
     blockHashOrNumber: Buffer | BN | number
   ): Promise<Block | null> {
-    if (typeof blockHashOrNumber === "number") {
-      return this._data.getBlockByNumber(new BN(blockHashOrNumber)) ?? null;
-    }
-    if (BN.isBN(blockHashOrNumber)) {
-      return this._data.getBlockByNumber(blockHashOrNumber) ?? null;
+    if (typeof blockHashOrNumber === "number" || BN.isBN(blockHashOrNumber)) {
+      const blockNumber =
+        typeof blockHashOrNumber === "number"
+          ? new BN(blockHashOrNumber)
+          : blockHashOrNumber;
+      await this._createBlockIfNeeded(blockNumber);
+      return this._data.getBlockByNumber(blockNumber) ?? null;
     }
     return this._data.getBlockByHash(blockHashOrNumber) ?? null;
   }
@@ -166,5 +168,44 @@ export class HardhatBlockchain implements HardhatBlockchainInterface {
       }
     }
     this._length = blockNumber;
+  }
+
+  private async _createBlockIfNeeded(blockNumber: BN): Promise<void> {
+    // if blockNumber lies within one of the ranges listed in
+    // this._data.emptyBlockRanges, then that block doesn't actually exist yet,
+    // and it needs to be created, and that emptyBlockRange probably needs to
+    // be split into multiple different ranges now.
+
+    // determine whether any empty block ranges contain the block number.
+    const rangeIndex = this._data.emptyBlockRanges.findIndex(
+      (range) => range.first.lte(blockNumber) && range.last.gte(blockNumber)
+    );
+    if (rangeIndex !== -1) {
+      // the block number lies within the identified empty block range
+
+      const oldRange = this._data.emptyBlockRanges[rangeIndex];
+
+      this._data.emptyBlockRanges.splice(rangeIndex, 1);
+
+      if (!blockNumber.eq(oldRange.first)) {
+        this._data.emptyBlockRanges.push({
+          first: oldRange.first,
+          last: blockNumber.subn(1),
+          intervalInSeconds: oldRange.intervalInSeconds,
+        });
+      }
+
+      if (!blockNumber.eq(oldRange.last)) {
+        this._data.emptyBlockRanges.push({
+          first: blockNumber.addn(1),
+          last: oldRange.last,
+          intervalInSeconds: oldRange.intervalInSeconds,
+        });
+      }
+
+      await this.addBlock(
+        Block.fromBlockData({ header: { number: blockNumber.toNumber() } })
+      );
+    }
   }
 }
