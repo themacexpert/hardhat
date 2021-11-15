@@ -2378,7 +2378,7 @@ Hardhat Network's forking functionality only works with blocks from at least spu
     ) {
       return defaultName;
     }
-    if (this._hardforkActivations === undefined) {
+    if (this._hardforkActivations.size() === 0) {
       throw new InternalError(
         `No known hardfork for execution on historical block ${blockNumber.toString()} (relative to fork block number ${
           this._forkBlockNumber
